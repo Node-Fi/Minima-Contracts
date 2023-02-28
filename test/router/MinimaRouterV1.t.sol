@@ -989,6 +989,11 @@ contract MinimaRouterV1Test is ExtendedDSTest {
         uint256 outputBalanceBefore = outputToken.balanceOf(alice);
         uint256 inputBalanceBefore = inputToken.balanceOf(alice);
 
+        // Make sure alice has enough tokens for the test
+        if (inputBalanceBefore < (inputAmount * 2)) {
+            return;
+        }
+
         // Avoid stack too deep errors on this test
         {
             address[][] memory path = new address[][](2);
@@ -1000,9 +1005,6 @@ contract MinimaRouterV1Test is ExtendedDSTest {
             IMinimaRouterV1.Divisor[][]
                 memory divisors = new IMinimaRouterV1.Divisor[][](1);
 
-            if (inputBalanceBefore < (inputAmount * 2)) {
-                return;
-            }
             {
                 path[0] = new address[](tradeLen);
                 pairs[0] = new address[](tradeLen - 1);

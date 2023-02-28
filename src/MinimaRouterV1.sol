@@ -408,8 +408,6 @@ contract MinimaRouterV1 is IMinimaRouterV1, Ownable {
             details.path[details.path.length - 1].length - 1
         ];
 
-        bool[] memory completedPaths = new bool[](details.path.length);
-
         for (uint256 i = 0; i < details.path.length; i++) {
             require(
                 details.pairs[i].length > 0,
@@ -455,8 +453,14 @@ contract MinimaRouterV1 is IMinimaRouterV1, Ownable {
 
                 for (uint256 k = 0; k < transferAmounts.length; k++) {
                     uint8 toIdx = details.divisors[i][k].toIdx;
+
+                    // Allow output token to stay in this contract, it will be transfered out following the complete path execution
+                    if (toIdx == 0 && details.divisors[i][k].token == output) {
+                        continue;
+                    }
+
                     require(
-                        completedPaths[toIdx] == false && toIdx != i,
+                        toIdx > i,
                         "MinimaRouterV1: Can not transfer to completed path!"
                     );
 
@@ -471,7 +475,6 @@ contract MinimaRouterV1 is IMinimaRouterV1, Ownable {
                     }
                 }
             }
-            completedPaths[i] = true;
         }
 
         uint256 tradeOutput = SafeMath.sub(

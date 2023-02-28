@@ -1,16 +1,13 @@
 name: test
 
-on: workflow_dispatch
+on: pull_request
 
 env:
   FOUNDRY_PROFILE: ci
 
 jobs:
   check:
-    strategy:
-      fail-fast: true
-
-    name: Foundry project
+    name: Minima
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -22,7 +19,7 @@ jobs:
         with:
           version: nightly
 
-      - name: Sets up rep
+      - name: Sets up repo
         run: |
           sh ./shell/init.sh
         id: prepare

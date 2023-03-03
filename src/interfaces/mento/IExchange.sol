@@ -10,4 +10,5 @@ interface IExchange {
   function getBuyAndSellBuckets(bool) external view returns (uint256, uint256);
   function getStableBucketCap() external view returns (uint256);
   function spread() external view returns (uint256);
+  function stable() external view returns (address);
 }

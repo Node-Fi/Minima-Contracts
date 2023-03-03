@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 interface ICurve {
     function A() external view returns (uint256);
-
+    
     function A_precise() external view returns (uint256);
 
     function fee() external view returns (uint256);
@@ -11,6 +11,8 @@ interface ICurve {
     function coins(uint256 i) external view returns (address);
 
     function balances(uint256 i) external view returns (uint256);
+
+    function get_balances() external view returns (uint256[4] memory);
 
     function exchange(
         int128 i,

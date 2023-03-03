@@ -96,24 +96,24 @@ contract MinimaRouterV1 is IMinimaRouterV1, Ownable {
     }
 
     /**
-		admin should be a multisig wallet
+		Initial owner should be a multisig wallet
 	 */
-    constructor(address admin, address[] memory initialSigners)
+    constructor(address owner, address[] memory initialSigners)
         public
         Ownable()
     {
         require(
-            admin != address(0),
+            owner != address(0),
             "MinimaRouterV1: Admin can not be 0 address!"
         );
         require(
-            isContract(admin),
+            isContract(owner),
             "MinimaRouterV1: Minima must be deployed from contract!"
         );
-        transferOwnership(admin);
+        transferOwnership(owner);
 
         // Make the null tenant the admin wallet, with default fee numerator of 0
-        partnerAdmin[0] = admin;
+        partnerAdmin[0] = owner;
 
         // Add the initial signers
         for (uint8 i = 0; i < initialSigners.length; i++) {
@@ -408,8 +408,6 @@ contract MinimaRouterV1 is IMinimaRouterV1, Ownable {
             details.path[details.path.length - 1].length - 1
         ];
 
-        bool[] memory completedPaths = new bool[](details.path.length);
-
         for (uint256 i = 0; i < details.path.length; i++) {
             require(
                 details.pairs[i].length > 0,
@@ -455,8 +453,14 @@ contract MinimaRouterV1 is IMinimaRouterV1, Ownable {
 
                 for (uint256 k = 0; k < transferAmounts.length; k++) {
                     uint8 toIdx = details.divisors[i][k].toIdx;
+
+                    // Allow output token to stay in this contract, it will be transfered out following the complete path execution
+                    if (toIdx == 0 && details.divisors[i][k].token == output) {
+                        continue;
+                    }
+
                     require(
-                        completedPaths[toIdx] == false && toIdx != i,
+                        toIdx > i,
                         "MinimaRouterV1: Can not transfer to completed path!"
                     );
 
@@ -471,7 +475,6 @@ contract MinimaRouterV1 is IMinimaRouterV1, Ownable {
                     }
                 }
             }
-            completedPaths[i] = true;
         }
 
         uint256 tradeOutput = SafeMath.sub(

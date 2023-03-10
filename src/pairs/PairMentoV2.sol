@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import "../interfaces/ISwappaPairV1.sol";
-import "../interfaces/mento/ICeloRegistry.sol";
-import "../interfaces/mento/IMentoBroker.sol";
-import "../interfaces/mento/IMentoExchangeProvider.sol";
+import {ISwappaPairV1} from "../interfaces/ISwappaPairV1.sol";
+import {ICeloRegistry} from "../interfaces/mento/ICeloRegistry.sol";
+import {IMentoBroker} from "../interfaces/mento/IMentoBroker.sol";
+import {IMentoExchangeProvider} from "../interfaces/mento/IMentoExchangeProvider.sol";
 
-contract PairMento is ISwappaPairV1 {
+contract PairMentoV2 is ISwappaPairV1 {
     // Registry identifier for the Mento broker contract.
     string public constant BROKER_REGISTRY_IDENTIFIER = "Broker";
+    address public constant CELO_REGISTRY_ADDRESS =
+        0x000000000000000000000000000000000000ce10;
 
-    ICeloRegistry public immutable celoRegistry;
-
-    constructor(ICeloRegistry _celoRegistry) {
-        celoRegistry = _celoRegistry;
-    }
+    // Celo registry contract.
+    ICeloRegistry public immutable celoRegistry =
+        ICeloRegistry(CELO_REGISTRY_ADDRESS);
 
     function swap(
         address input,
@@ -31,11 +31,17 @@ contract PairMento is ISwappaPairV1 {
     ) external view returns (uint amountOut) {
         IMentoBroker broker = getMentoBroker();
 
+        // Get the exchange provider address & exchange id for the specified tokens.
         (
             address exchangeProviderAddress,
             bytes32 exchangeId
         ) = getExchangeInfoForTokens(input, output, broker);
 
+        if (exchangeProviderAddress == address(0) || exchangeId == 0) {
+            return 0;
+        }
+
+        // Get a quote from the broker.
         amountOut = broker.getAmountOut(
             exchangeProviderAddress,
             exchangeId,

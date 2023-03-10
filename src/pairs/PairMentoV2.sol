@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import {ISwappaPairV1} from "../interfaces/ISwappaPairV1.sol";
-import {ICeloRegistry} from "../interfaces/mento/ICeloRegistry.sol";
-import {IMentoBroker} from "../interfaces/mento/IMentoBroker.sol";
-import {IMentoExchangeProvider} from "../interfaces/mento/IMentoExchangeProvider.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+import {ISwappaPairV1} from "src/interfaces/ISwappaPairV1.sol";
+import {ICeloRegistry} from "src/interfaces/mento/ICeloRegistry.sol";
+import {IMentoBroker} from "src/interfaces/mento/IMentoBroker.sol";
+import {IMentoExchangeProvider} from "src/interfaces/mento/IMentoExchangeProvider.sol";
 
 contract PairMentoV2 is ISwappaPairV1 {
     // Registry identifier for the Mento broker contract.
@@ -21,7 +23,36 @@ contract PairMentoV2 is ISwappaPairV1 {
         address output,
         address to,
         bytes calldata data
-    ) external {}
+    ) external {
+        (
+            address exchangeProviderAddress,
+            bytes32 exchangeId,
+            uint256 amountOutMin
+        ) = abi.decode(data, (address, bytes32, uint256));
+
+        // Get the broker contract.
+        IMentoBroker broker = getMentoBroker();
+
+        uint256 amountIn = IERC20(input).balanceOf(address(this));
+        require(
+            IERC20(input).approve(address(broker), amountIn),
+            "PairMentoV2: approve failed!"
+        );
+
+        uint256 amountOut = broker.swapIn(
+            exchangeProviderAddress,
+            exchangeId,
+            input,
+            output,
+            amountIn,
+            amountOutMin
+        );
+
+        require(
+            IERC20(output).transfer(to, amountOut),
+            "PairMentoV2: transfer failed!"
+        );
+    }
 
     function getOutputAmount(
         address input,
@@ -52,17 +83,6 @@ contract PairMentoV2 is ISwappaPairV1 {
     }
 
     /**
-     * @notice Gets the Mento broker contract.
-     */
-    function getMentoBroker() internal view returns (IMentoBroker broker) {
-        address brokerAddress = celoRegistry.getAddressForString(
-            BROKER_REGISTRY_IDENTIFIER
-        );
-        require(brokerAddress != address(0), "Address not found in regisry");
-        broker = IMentoBroker(brokerAddress);
-    }
-
-    /**
      * @notice Gets the exchange provider address & exchange id for the specified tokens.
      * @param tokenA The first token.
      * @param tokenB The second token.
@@ -76,7 +96,7 @@ contract PairMentoV2 is ISwappaPairV1 {
         address tokenB,
         IMentoBroker broker
     )
-        internal
+        public
         view
         returns (address exchangeProviderAddress, bytes32 exchangeId)
     {
@@ -112,5 +132,16 @@ contract PairMentoV2 is ISwappaPairV1 {
                 }
             }
         }
+    }
+
+    /**
+     * @notice Gets the Mento broker contract.
+     */
+    function getMentoBroker() public view returns (IMentoBroker broker) {
+        address brokerAddress = celoRegistry.getAddressForString(
+            BROKER_REGISTRY_IDENTIFIER
+        );
+        require(brokerAddress != address(0), "Address not found in regisry");
+        broker = IMentoBroker(brokerAddress);
     }
 }

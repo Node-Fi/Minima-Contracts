@@ -8,6 +8,8 @@ import {ICeloRegistry} from "src/interfaces/mento/ICeloRegistry.sol";
 import {IMentoBroker} from "src/interfaces/mento/IMentoBroker.sol";
 import {IMentoExchangeProvider} from "src/interfaces/mento/IMentoExchangeProvider.sol";
 
+import {console} from "forge-std/console.sol";
+
 contract PairMentoV2 is ISwappaPairV1 {
     // Registry identifier for the Mento broker contract.
     string public constant BROKER_REGISTRY_IDENTIFIER = "Broker";
@@ -39,6 +41,14 @@ contract PairMentoV2 is ISwappaPairV1 {
             "PairMentoV2: approve failed!"
         );
 
+        uint256 outputTokenAmountBefore = IERC20(output).balanceOf(
+            address(this)
+        );
+        console.log(
+            "Output balance of contract before: %s",
+            outputTokenAmountBefore
+        );
+
         uint256 amountOut = broker.swapIn(
             exchangeProviderAddress,
             exchangeId,
@@ -48,6 +58,13 @@ contract PairMentoV2 is ISwappaPairV1 {
             amountOutMin
         );
 
+        console.log("Amount out after swap: %s", amountOut);
+
+        uint256 inputTokenAmount = IERC20(input).balanceOf(address(this));
+        console.log("Input balance of contract after: %s", inputTokenAmount);
+
+        uint256 outputTokenAmount = IERC20(output).balanceOf(address(this));
+        console.log("Output balance of contract after: %s", outputTokenAmount);
         require(
             IERC20(output).transfer(to, amountOut),
             "PairMentoV2: transfer failed!"
@@ -57,9 +74,9 @@ contract PairMentoV2 is ISwappaPairV1 {
     function getOutputAmount(
         address input,
         address output,
-        uint amountIn,
+        uint256 amountIn,
         bytes calldata
-    ) external view returns (uint amountOut) {
+    ) external view returns (uint256 amountOut) {
         IMentoBroker broker = getMentoBroker();
 
         // Get the exchange provider address & exchange id for the specified tokens.
@@ -104,7 +121,7 @@ contract PairMentoV2 is ISwappaPairV1 {
         address[] memory exchangeProviders = broker.getExchangeProviders();
 
         // For each exchange provider get all exchanges.
-        for (uint i = 0; i < exchangeProviders.length; i++) {
+        for (uint256 i = 0; i < exchangeProviders.length; i++) {
             IMentoExchangeProvider provider = IMentoExchangeProvider(
                 exchangeProviders[i]
             );
@@ -113,7 +130,7 @@ contract PairMentoV2 is ISwappaPairV1 {
             IMentoExchangeProvider.Exchange[] memory exchanges = provider
                 .getExchanges();
 
-            for (uint j = 0; j < exchanges.length; j++) {
+            for (uint256 j = 0; j < exchanges.length; j++) {
                 IMentoExchangeProvider.Exchange memory exchange = exchanges[j];
 
                 // Skip exchanges that do not have exactly two tokens.

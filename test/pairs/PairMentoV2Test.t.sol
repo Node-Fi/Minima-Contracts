@@ -11,6 +11,10 @@ import {IMentoBroker} from "src/interfaces/mento/IMentoBroker.sol";
 
 import {PairMentoV2} from "src/pairs/PairMentoV2.sol";
 
+interface IStableToken {
+    function mint(address, uint256) external returns (bool);
+}
+
 contract PairMentoV2Test is Test {
     string public baklavaRpcUrl = vm.envString("BAKLAVA_RPC_URL");
 
@@ -19,6 +23,8 @@ contract PairMentoV2Test is Test {
         0xdDc9bE57f553fe75752D61606B94CBD7e0264eF8;
     address public constant CUSD_ADDRESS =
         0x62492A644A588FD904270BeD06ad52B9abfEA1aE;
+    address public constant MENTO_GRANDA =
+        0xdfd641aB188Add84B317fB0b241F6b879E5EF906;
 
     PairMentoV2 public pairMentoV2;
 
@@ -26,46 +32,67 @@ contract PairMentoV2Test is Test {
         vm.createSelectFork(baklavaRpcUrl);
 
         pairMentoV2 = new PairMentoV2();
-    }
 
-    // Helper function to mint celo to an address
-    function mintCelo(address to, uint256 amount) private {
-        vm.startPrank(address(0));
-        CELO_ADDRESS.call(
-            abi.encodeWithSignature("mint(address,uint256)", to, amount)
-        );
-        vm.stopPrank();
+        // Mint CUSD to pair
+        changePrank(MENTO_GRANDA);
+        IStableToken(CUSD_ADDRESS).mint(address(pairMentoV2), 1 ether);
     }
 
     function testSwapCeloToCusd() public {
         address trader = makeAddr("trader");
 
-        // TODO: check mint
-        mintCelo(trader, 1 ether);
+        // CUSD is going to pair but not coming out
+
+        // Get expected out
+        uint256 amountOutMin = pairMentoV2.getOutputAmount(
+            CUSD_ADDRESS,
+            CELO_ADDRESS,
+            1 ether,
+            ""
+        );
 
         uint256 traderCeloBefore = IERC20(CELO_ADDRESS).balanceOf(trader);
         uint256 traderCusdBefore = IERC20(CUSD_ADDRESS).balanceOf(trader);
 
-        assertTrue(traderCusdBefore == 0);
+        // Verify trader has no CELO
+        assertTrue(traderCeloBefore == 0);
 
+        // Get the broker address
         IMentoBroker broker = pairMentoV2.getMentoBroker();
 
+        // Get the exchange info
         (address exchangeProviderAddress, bytes32 exchangeId) = pairMentoV2
             .getExchangeInfoForTokens(CELO_ADDRESS, CUSD_ADDRESS, broker);
 
+        // Verify we have a valid exchange for the tokens
         assertTrue(exchangeProviderAddress != address(0));
         assertTrue(exchangeId != bytes32(0));
 
-        // TODO: Need to get amount out...
-        bytes swapData = abi.encode(exchangeProviderAddress, exchangeId, 0);
+        bytes memory swapData = abi.encode(
+            exchangeProviderAddress,
+            exchangeId,
+            amountOutMin
+        );
 
-        changePrank(trader);
-        IERC20(CELO_ADDRESS).transfer(address(traderCeloBefore), 1 ether);
+        uint256 pairBalanceBefore = IERC20(CUSD_ADDRESS).balanceOf(
+            address(pairMentoV2)
+        );
 
-        pairMentoV2.swap(CELO_ADDRESS, CUSD_ADDRESS, trader, swapData);
+        uint256 pairBalanceAfter = IERC20(CUSD_ADDRESS).balanceOf(
+            address(pairMentoV2)
+        );
+
+        // Swap CUSD for CELO with trader as recipient trader.
+        pairMentoV2.swap(CUSD_ADDRESS, CELO_ADDRESS, trader, swapData);
 
         uint256 traderCeloAfter = IERC20(CELO_ADDRESS).balanceOf(trader);
         uint256 traderCusdAfter = IERC20(CUSD_ADDRESS).balanceOf(trader);
+
+        console.log("traderCeloBefore: %s", traderCeloBefore);
+        console.log("traderCeloAfter: %s", traderCeloAfter);
+
+        console.log("traderCusdBefore: %s", traderCusdBefore);
+        console.log("traderCusdAfter: %s", traderCusdAfter);
 
         assertTrue(traderCeloAfter == 0);
         assertTrue(traderCusdAfter > 0);

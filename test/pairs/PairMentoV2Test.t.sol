@@ -5,6 +5,7 @@ pragma solidity 0.8.18;
 
 import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
+import {PrecompileHandler} from "../utils/PrecompileHandler.sol"; 
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IMentoBroker} from "src/interfaces/mento/IMentoBroker.sol";
@@ -27,10 +28,12 @@ contract PairMentoV2Test is Test {
         0xdfd641aB188Add84B317fB0b241F6b879E5EF906;
 
     PairMentoV2 public pairMentoV2;
+    PrecompileHandler public ph;
 
     function setUp() public {
         vm.createSelectFork(baklavaRpcUrl);
 
+        ph  = new PrecompileHandler();
         pairMentoV2 = new PairMentoV2();
 
         // Mint CUSD to pair
@@ -38,24 +41,25 @@ contract PairMentoV2Test is Test {
         IStableToken(CUSD_ADDRESS).mint(address(pairMentoV2), 1 ether);
     }
 
-    function testSwapCeloToCusd() public {
+    function testSwapCusdToCelo() public {
         address trader = makeAddr("trader");
-
-        // CUSD is going to pair but not coming out
-
+  
         // Get expected out
         uint256 amountOutMin = pairMentoV2.getOutputAmount(
             CUSD_ADDRESS,
             CELO_ADDRESS,
             1 ether,
             ""
-        );
+        ); 
 
         uint256 traderCeloBefore = IERC20(CELO_ADDRESS).balanceOf(trader);
-        uint256 traderCusdBefore = IERC20(CUSD_ADDRESS).balanceOf(trader);
+        uint256 pairCusdBalanceBefore = IERC20(CUSD_ADDRESS).balanceOf(
+            address(pairMentoV2)
+        );
 
-        // Verify trader has no CELO
+        // Verify trader has no CELO and pair contract has 1 ether from mint
         assertTrue(traderCeloBefore == 0);
+        assertTrue(pairCusdBalanceBefore == 1 ether);
 
         // Get the broker address
         IMentoBroker broker = pairMentoV2.getMentoBroker();
@@ -73,29 +77,21 @@ contract PairMentoV2Test is Test {
             exchangeId,
             amountOutMin
         );
-
-        uint256 pairBalanceBefore = IERC20(CUSD_ADDRESS).balanceOf(
-            address(pairMentoV2)
-        );
-
-        uint256 pairBalanceAfter = IERC20(CUSD_ADDRESS).balanceOf(
-            address(pairMentoV2)
-        );
-
-        // Swap CUSD for CELO with trader as recipient trader.
+   
+        // Swap CUSD for CELO with trader as to address
         pairMentoV2.swap(CUSD_ADDRESS, CELO_ADDRESS, trader, swapData);
 
+        // Trader should have 0 CUSD but `amountOutMin` Celo
         uint256 traderCeloAfter = IERC20(CELO_ADDRESS).balanceOf(trader);
         uint256 traderCusdAfter = IERC20(CUSD_ADDRESS).balanceOf(trader);
+        // Pair contract should have 0 Celo after swap
+         uint256 pairCusdBalanceAfter = IERC20(CUSD_ADDRESS).balanceOf(
+            address(pairMentoV2)
+        );
 
-        console.log("traderCeloBefore: %s", traderCeloBefore);
-        console.log("traderCeloAfter: %s", traderCeloAfter);
-
-        console.log("traderCusdBefore: %s", traderCusdBefore);
-        console.log("traderCusdAfter: %s", traderCusdAfter);
-
-        assertTrue(traderCeloAfter == 0);
-        assertTrue(traderCusdAfter > 0);
+        assertTrue(traderCeloAfter == amountOutMin);
+        assertTrue(traderCusdAfter == 0);
+        assertTrue(pairCusdBalanceAfter == 0);
     }
 
     function testGetOutputAmount() public {

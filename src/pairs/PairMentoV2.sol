@@ -8,8 +8,6 @@ import {ICeloRegistry} from "src/interfaces/mento/ICeloRegistry.sol";
 import {IMentoBroker} from "src/interfaces/mento/IMentoBroker.sol";
 import {IMentoExchangeProvider} from "src/interfaces/mento/IMentoExchangeProvider.sol";
 
-import {console} from "forge-std/console.sol";
-
 contract PairMentoV2 is ISwappaPairV1 {
     // Registry identifier for the Mento broker contract.
     string public constant BROKER_REGISTRY_IDENTIFIER = "Broker";
@@ -39,16 +37,8 @@ contract PairMentoV2 is ISwappaPairV1 {
         require(
             IERC20(input).approve(address(broker), amountIn),
             "PairMentoV2: approve failed!"
-        );
-
-        uint256 outputTokenAmountBefore = IERC20(output).balanceOf(
-            address(this)
-        );
-        console.log(
-            "Output balance of contract before: %s",
-            outputTokenAmountBefore
-        );
-
+        ); 
+        
         uint256 amountOut = broker.swapIn(
             exchangeProviderAddress,
             exchangeId,
@@ -58,13 +48,6 @@ contract PairMentoV2 is ISwappaPairV1 {
             amountOutMin
         );
 
-        console.log("Amount out after swap: %s", amountOut);
-
-        uint256 inputTokenAmount = IERC20(input).balanceOf(address(this));
-        console.log("Input balance of contract after: %s", inputTokenAmount);
-
-        uint256 outputTokenAmount = IERC20(output).balanceOf(address(this));
-        console.log("Output balance of contract after: %s", outputTokenAmount);
         require(
             IERC20(output).transfer(to, amountOut),
             "PairMentoV2: transfer failed!"

@@ -5,7 +5,7 @@ pragma solidity 0.8.18;
 
 import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
-import {PrecompileHandler} from "../utils/PrecompileHandler.sol"; 
+import {PrecompileHandler} from "../utils/PrecompileHandler.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IMentoBroker} from "src/interfaces/mento/IMentoBroker.sol";
@@ -33,7 +33,7 @@ contract PairMentoV2Test is Test {
     function setUp() public {
         vm.createSelectFork(baklavaRpcUrl);
 
-        ph  = new PrecompileHandler();
+        ph = new PrecompileHandler();
         pairMentoV2 = new PairMentoV2();
 
         // Mint CUSD to pair
@@ -43,21 +43,21 @@ contract PairMentoV2Test is Test {
 
     function testSwapCusdToCelo() public {
         address trader = makeAddr("trader");
-  
+
         // Get expected out
         uint256 amountOutMin = pairMentoV2.getOutputAmount(
             CUSD_ADDRESS,
             CELO_ADDRESS,
             1 ether,
             ""
-        ); 
+        );
 
         uint256 traderCeloBefore = IERC20(CELO_ADDRESS).balanceOf(trader);
         uint256 pairCusdBalanceBefore = IERC20(CUSD_ADDRESS).balanceOf(
             address(pairMentoV2)
         );
 
-        // Verify trader has no CELO and pair contract has 1 ether from mint
+        // Verify trader has no CELO and pair contract has 1 * 10**18 cusd
         assertTrue(traderCeloBefore == 0);
         assertTrue(pairCusdBalanceBefore == 1 ether);
 
@@ -77,7 +77,7 @@ contract PairMentoV2Test is Test {
             exchangeId,
             amountOutMin
         );
-   
+
         // Swap CUSD for CELO with trader as to address
         pairMentoV2.swap(CUSD_ADDRESS, CELO_ADDRESS, trader, swapData);
 
@@ -85,7 +85,7 @@ contract PairMentoV2Test is Test {
         uint256 traderCeloAfter = IERC20(CELO_ADDRESS).balanceOf(trader);
         uint256 traderCusdAfter = IERC20(CUSD_ADDRESS).balanceOf(trader);
         // Pair contract should have 0 Celo after swap
-         uint256 pairCusdBalanceAfter = IERC20(CUSD_ADDRESS).balanceOf(
+        uint256 pairCusdBalanceAfter = IERC20(CUSD_ADDRESS).balanceOf(
             address(pairMentoV2)
         );
 
